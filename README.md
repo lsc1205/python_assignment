@@ -1,228 +1,144 @@
-# Take-Home Assignment
+# Project Description
 
-The goal of this take-home assignment is to evaluate your abilities to use API, data processing and transformation, SQL, and implement a new API service in Python.
+This project provides simple APIs to query the stock price trends and statistics of a given company.
 
-You should first fork this repository, and then send us the code or the url of your forked repository via email.
+## Table of contents
+* [Tech Stack](#tech-tack)
+* [Usage](#usage)
+* [Discussion](#discussion)
 
-**Please do not submit any pull requests to this repository.**
 
-You need to perform the following **Two** tasks:
+## Tech Stack
+Project is created with:
+* Git: Version control
+* Docker: Package and deploy application
+* Flask: API Service
+* SqlAlchemy + MySQL: Data persistence
 
-## Task1
-### Problem Statement:
-1. Retrieve the financial data of Two given stocks (IBM, Apple Inc.)for the most recently two weeks. Please using an free API provider named [AlphaVantage](https://www.alphavantage.co/documentation/) 
-2. Process the raw API data response, a sample output after process should be like:
 ```
-{
-    "symbol": "IBM",
-    "date": "2023-02-14",
-    "open_price": "153.08",
-    "close_price": "154.52",
-    "volume": "62199013",
-},
-{
-    "symbol": "IBM",
-    "date": "2023-02-13",
-    "open_price": "153.08",
-    "close_price": "154.52",
-    "volume": "59099013"
-},
-{
-    "symbol": "IBM",
-    "date": "2023-02-12",
-    "open_price": "153.08",
-    "close_price": "154.52",
-    "volume": "42399013"
-},
-...
-``` 
-3. Insert the records above into a table named `financial_data` in your local database, column name should be same as the processed data from step 2 above (symbol, date, open_price, close_price, volume) 
-
-
-## Task2
-### Problem Statement:
-1. Implement an Get financial_data API to retrieve records from `financial_data` table, please note that:
-    - the endpoint should accept following parameters: start_date, end_date, symbol, all parameters are optional
-    - the endpoint should support pagination with parameter: limit and page, if no parameters are given, default limit for one page is 5
-    - the endpoint should return an result with three properties:
-        - data: an array includes actual results
-        - pagination: handle pagination with four properties
-            
-            - count: count of all records without panigation
-            - page: current page index
-            - limit: limit of records can be retrieved for single page
-            - pages: total number of pages
-        - info: includes any error info if applies
-    
-
-Sample Request:
+python_assignment
+│  docker-compose.yml
+│  Dockerfile                  # dockerfile for api service
+│  get_raw_data.py             # get raw financial data and store them in database
+│  README.md
+│  README_N.md
+│  requirements.txt            # dependencies
+│  schema.sql                  # sql statement for create financial_data table
+│
+└─financial
+    │  app.py                  # flask app entrance
+    │  __init__.py
+    │
+    ├─api                      # api entrance
+    │      financial_data.py   # financial data query api
+    │      statistics.py       # financial statistics query api
+    │      util.py             # error handling decorator
+    │      __init__.py
+    │
+    ├─mysql                    # database abstraction for python
+    │      config.py           # mysql config file
+    │      engine.py           # sqlalchemy engine
+    │      __init__.py
+    │
+    └─test                     # tests for apis
+            financial_data_test.py # tests for functions in financial_data module
+            statistics_test.py     # tests for functions in statistics module
+            __init__.py
+```
+### Dependencies
 ```bash
-curl -X GET 'http://localhost:5000/api/financial_data?start_date=2023-01-01&end_date=2023-01-14&symbol=IBM&limit=3&page=2'
-
-```
-Sample Response:
-```
-{
-    "data": [
-        {
-            "symbol": "IBM",
-            "date": "2023-01-05",
-            "open_price": "153.08",
-            "close_price": "154.52",
-            "volume": "62199013",
-        },
-        {
-            "symbol": "IBM",
-            "date": "2023-01-06",
-            "open_price": "153.08",
-            "close_price": "154.52",
-            "volume": "59099013"
-        },
-        {
-            "symbol": "IBM",
-            "date": "2023-01-09",
-            "open_price": "153.08",
-            "close_price": "154.52",
-            "volume": "42399013"
-        }
-    ],
-    "pagination": {
-        "count": 20,
-        "page": 2,
-        "limit": 3,
-        "pages": 7
-    },
-    "info": {'error': ''}
-}
-
+requests     # requests is one of most popular python libraries to send http requests, so we choose to use it. 
+flask        # Light weighted and popular web framework
+PyMySQL      # Dependency of sqlalchemy
+cryptography # Used for mysql connection
+sqlalchemy   # Efficient and high-performing python database toolkit. We can use it to connect mysql and execute sql statements.
 ```
 
-2. Implement an Get statistics API to perform the following calculations on the data in given period of time:
-    - Calculate the average daily open price for the period
-    - Calculate the average daily closing price for the period
-    - Calculate the average daily volume for the period
-
-    - the endpoint should accept following parameters: start_date, end_date, symbols, all parameters are required
-    - the endpoint should return an result with two properties:
-        - data: calculated statistic results
-        - info: includes any error info if applies
-
-Sample request:
+## Usage
+1. Launch the api service and mysql in docker. The database and table used to store stock price information will be automatically created.
 ```bash
-curl -X GET http://localhost:5000/api/statistics?start_date=2023-01-01&end_date=2023-01-31&symbol=IBM
+$ docker-compose up           
+```
+2. After launch, the database table is empty, so we should retrieve some stock data from API provided by AlphaVantage and store them in local db.
+```
+$ python get_raw_data.py       
+```
+3. Then, we can query data through APIs.
+```bash
+# HOST: http://localhost:5000
+
+# Financial data API
+# path: /api/financial_data
+# method: GET
+# request:
+# {
+#     "start_date": str,  # e.g., "2023-01-01", optional
+#     "end_date": str,    # e.g., "2023-05-14", optional
+#     "symbol": str,      # e.g., "IBM", optional
+#     "limit": int,       # e.g., 3
+#     "page": int         # e.g., 2
+# }
+# response:
+# {
+#     "data": [
+#         {
+#             "symbol": str,
+#             "date": str,
+#             "open_price": str,
+#             "close_price": str,
+#             "volume": str,
+#         }
+#     ],
+#     "pagination": {
+#         "count": int,
+#         "page": int,
+#         "limit": int,
+#         "pages": int
+#     },
+#     "info": {'error': ''}
+# }
+# example:
+curl -X GET 'http://localhost:5000/api/financial_data?start_date=2023-01-01&end_date=2023-05-14&symbol=IBM&limit=3&page=2'
+
+
+# Financial statistics API
+# path: /api/statistics
+# method: GET
+# request:
+# {
+#     "start_date": str,  # e.g., "2023-01-01"
+#     "end_date": str,    # e.g., "2023-05-14"
+#     "symbol": str,      # e.g., "IBM"
+# }
+# response:
+# {
+#     "data": [
+#         {
+#           "start_date": str,
+#           "end_date": str,
+#           "symbol": str,
+#           "average_daily_open_price": float,
+#           "average_daily_close_price": float,
+#           "average_daily_volume": int
+#         }
+#     ],
+#     "pagination": {
+#         "count": int,
+#         "page": int,
+#         "limit": int,
+#         "pages": int
+#     },
+#     "info": {'error': ''}
+# }
+# example:
+curl -X GET 'http://localhost:5000/api/statistics?start_date=2023-01-01&end_date=2023-05-31&symbol=IBM'
 
 ```
-Sample response:
-```
-{
-    "data": {
-        "start_date": "2023-01-01",
-        "end_date": "2023-01-31",
-        "symbol": "IBM",
-        "average_daily_open_price": 123.45,
-        "average_daily_close_price": 234.56,
-        "average_daily_volume": 1000000
-    },
-    "info": {'error': ''}
-}
 
-```
+## Discussion
+API key storage method:
+### Local development
 
-## What you should deliver:
-Directory structure:
-```
-project-name/
-├── model.py
-├── schema.sql
-├── get_raw_data.py
-├── Dockerfile
-├── docker-compose.yml
-├── README.md
-├── requirements.txt
-└── financial/<Include API service code here>
+Directly hard-coded in the python file.
 
-```
-
-1. A `get_raw_data.py` file in root folder
-
-    Action: 
-    
-    Run 
-    ```bash
-    python get_raw_data.py
-    ```
-
-    Expectation: 
-    
-    1. Financial data will be retrieved from API and processed,then insert all processed records into table `financial_data` in local db
-    2. Duplicated records should be avoided when executing get_raw_data multiple times, consider implementing your own logic to perform upsert operation if the database you select does not have native support for such operation.
-
-2. A `schema.sql` file in root folder
-    
-    Define schema for financial_data table, if you prefer to use an ORM library, just **ignore** this deliver item and jump to item3 below.
-
-    Action: Run schema definition in local db
-
-    Expectation: A new table named `financial_data` should be created if not exists in db
-
-3. (Optional) A `model.py` file: 
-    
-    If you perfer to use a ORM library instead of DDL, please include your model definition in `model.py`, and describe how to perform migration in README.md file
-
-4. A `Dockerfile` file in root folder
-
-    Build up your local API service
-
-5. A `docker-compose.yml` file in root folder
-
-    Two services should be defined in docker-compose.yml: Database and your API
-
-    Action:
-
-    ```bash
-    docker-compose up
-    ```
-
-    Expectation:
-    Both database and your API service is up and running in local development environment
-
-6. A `financial` sub-folder:
-
-    Put all API implementation related codes in here
-
-7. `README.md`: 
-
-    You should include:
-    - A brief project description
-    - Tech stack you are using in this project
-    - How to run your code in local environment
-    - Provide a description of how to maintain the API key to retrieve financial data from AlphaVantage in both local development and production environment.
-
-8. A `requirements.txt` file:
-
-    It should contain your dependency libraries.
-
-## Requirements:
-
-- The program should be written in Python 3.
-- You are free to use any API and libraries you like, but should include a brief explanation of why you chose the API and libraries you used in README.
-- The API key to retrieve financial data should be stored securely. Please provide a description of how to maintain the API key from both local development and production environment in README.
-- The database in Problem Statement 1 could be created using SQLite/MySQL/.. with your own choice.
-- The program should include error handling to handle cases where the API returns an error or the data is not in the correct format.
-- The program should cover as many edge cases as possible, not limited to expectations from deliverable above.
-- The program should use appropriate data structures and algorithms to store the data and perform the calculations.
-- The program should include appropriate documentation, including docstrings and inline comments to explain the code.
-
-## Evaluation Criteria:
-
-Your solution will be evaluated based on the following criteria:
-
-- Correctness: Does the program produce the correct results?
-- Code quality: Is the code well-structured, easy to read, and maintainable?
-- Design: Does the program make good use of functions, data structures, algorithms, databases, and libraries?
-- Error handling: Does the program handle errors and unexpected input appropriately?
-- Documentation: Is the code adequately documented, with clear explanations of the algorithms and data structures used?
-
-## Additional Notes:
-
-You have 7 days to complete this assignment and submit your solution.
+### Production environment 
